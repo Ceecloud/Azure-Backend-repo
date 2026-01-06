@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bank-backend-config
+data:
+  DB_HOST: "production-mysql-db.cijqcc2a6cp0.us-east-1.rds.amazonaws.com"
+  DB_PORT: "3306"
+  DB_NAME: "production_db"
