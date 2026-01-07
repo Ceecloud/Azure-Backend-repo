@@ -87,6 +87,70 @@
 # # 
 
 
+# name: Azure AKS Backend CI/CD
+
+# on:
+#   push:
+#     branches:
+#       - main
+
+# permissions:
+#   id-token: write
+#   contents: read     
+
+# jobs:
+#   build-and-deploy:
+#     runs-on: ubuntu-latest
+
+#     steps:
+#       # 1️⃣ Checkout code
+#       - name: Checkout source code
+#         uses: actions/checkout@v4
+
+#       # 2️⃣ Login to Azure
+#       - name: Azure Login
+#         uses: azure/login@v1
+#         with:
+#           client-id: ${{ secrets.AZURE_CLIENT_ID }}
+#           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+#           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+#       # 3️⃣ Login to ACR
+#       - name: Login to Azure Container Registry
+#         run: |
+#           echo "${{ secrets.ACR_PASSWORD }}" | docker login \
+#             ${{ secrets.ACR_LOGIN_SERVER }} \
+#             -u ${{ secrets.ACR_USERNAME }} \
+#             --password-stdin
+
+#       # 4️⃣ Build Docker image
+#       - name: Build Docker image
+#         run: |
+#           docker build \
+#             -t ${{ secrets.ACR_LOGIN_SERVER }}/bank-backend:${{ github.run_number }} \
+#             .
+
+#       # 5️⃣ Push image to ACR
+#       - name: Push Docker image
+#         run: |
+#           docker push ${{ secrets.ACR_LOGIN_SERVER }}/bank-backend:${{ github.run_number }}
+
+#       # 6️⃣ Set AKS context
+#       - name: Set AKS context
+#         uses: azure/aks-set-context@v3
+#         with:
+#           resource-group: hipaa-resources-group
+#           cluster-name: hippa-dev-cluster
+
+#       # 7️⃣ Deploy to AKS (THIS IS THE KEY PART)
+#       - name: Update backend image in Kubernetes
+#         run: |
+#           kubectl set image deployment/bank-backend-deployment \
+#             bank-backend-container=${{ secrets.ACR_LOGIN_SERVER }}/bank-backend:${{ github.run_number }}
+
+#           kubectl rollout status deployment/bank-backend-deployment
+
+
 name: Azure AKS Backend CI/CD
 
 on:
@@ -94,29 +158,26 @@ on:
     branches:
       - main
 
-permissions:
-  id-token: write
-  contents: read     
-
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout code
-      - name: Checkout source code
+      # 1️⃣ Checkout source code
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2️⃣ Login to Azure
+      # 2️⃣ Login to Azure using Client Secret (NO OIDC)
       - name: Azure Login
         uses: azure/login@v1
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      # 3️⃣ Login to ACR
-      - name: Login to Azure Container Registry
+      # 3️⃣ Login to Azure Container Registry
+      - name: Login to ACR
         run: |
           echo "${{ secrets.ACR_PASSWORD }}" | docker login \
             ${{ secrets.ACR_LOGIN_SERVER }} \
@@ -142,10 +203,11 @@ jobs:
           resource-group: hipaa-resources-group
           cluster-name: hippa-dev-cluster
 
-      # 7️⃣ Deploy to AKS (THIS IS THE KEY PART)
-      - name: Update backend image in Kubernetes
+      # 7️⃣ Deploy new image to AKS
+      - name: Deploy backend to AKS
         run: |
           kubectl set image deployment/bank-backend-deployment \
             bank-backend-container=${{ secrets.ACR_LOGIN_SERVER }}/bank-backend:${{ github.run_number }}
 
           kubectl rollout status deployment/bank-backend-deployment
+
